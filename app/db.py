@@ -5,8 +5,11 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -37,8 +40,24 @@ def make_session_factory(engine: Engine) -> sessionmaker[Session]:
     return sessionmaker(engine, expire_on_commit=False)
 
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def alembic_config(url: str) -> Config:
+    config = Config(str(PROJECT_ROOT / "alembic.ini"))
+    config.set_main_option("script_location", str(PROJECT_ROOT / "migrations"))
+    config.set_main_option("sqlalchemy.url", url)
+    config.attributes["configure_logger"] = False
+    return config
+
+
+def upgrade_db(url: str) -> None:
+    """Apply all pending Alembic migrations. Used by the API and the worker."""
+    command.upgrade(alembic_config(url), "head")
+
+
 def init_db(engine: Engine) -> None:
-    """Create tables. Replace with Alembic migrations when moving to Postgres."""
+    """Create tables straight from the models. For tests and throwaway databases only."""
     Base.metadata.create_all(engine)
 
 

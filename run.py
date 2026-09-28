@@ -17,7 +17,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from app import __version__
 from app.classifier import build_classifier
 from app.config import configure_logging, get_settings
-from app.db import get_engine, init_db, make_session_factory
+from app.db import get_engine, make_session_factory, upgrade_db
 from app.pipeline import build_sources, run_cycle
 from app.sender import build_sender
 
@@ -31,8 +31,8 @@ def main(argv: list[str] | None = None) -> int:
 
     settings = get_settings()
     configure_logging(settings.log_level)
+    upgrade_db(settings.database_url)
     engine = get_engine(settings.database_url)
-    init_db(engine)
 
     headers = {"User-Agent": f"editalis/{__version__}"}
     with httpx.Client(headers=headers, timeout=30) as http:

@@ -581,6 +581,28 @@ def test_webhook_onboards_and_reactivates_subscribers() -> None:
         assert subscriber.active and subscriber.ufs == ["SP"] and subscriber.areas == ["health"]
 
 
+def test_migrations_match_models() -> None:
+    import tempfile
+    from pathlib import Path
+
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+    from sqlalchemy import create_engine
+
+    from app.db import upgrade_db
+    from app.models import Base
+
+    with tempfile.TemporaryDirectory() as tmp:
+        url = f"sqlite:///{Path(tmp) / 'migrated.db'}"
+        upgrade_db(url)
+        upgrade_db(url)  # re-running is a no-op
+        engine = create_engine(url)
+        with engine.connect() as connection:
+            diff = compare_metadata(MigrationContext.configure(connection), Base.metadata)
+        engine.dispose()
+    assert diff == [], f"models and migrations differ; run alembic revision --autogenerate: {diff}"
+
+
 # ---------------------------------------------------------------------------
 # Standalone runner
 # ---------------------------------------------------------------------------

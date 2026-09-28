@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from app import __version__
 from app.billing import apply_asaas_event
 from app.config import Settings, configure_logging, get_settings
-from app.db import get_engine, init_db, make_session_factory
+from app.db import get_engine, make_session_factory, upgrade_db
 from app.domain import UFS, Area, EducationLevel, Plan
 from app.models import Subscriber
 from app.onboarding import parse_profile
@@ -37,7 +37,7 @@ PHONE_PATTERN = r"^55\d{10,11}$"  # E.164 without "+": 55 + area code + number
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     configure_logging(settings.log_level)
-    init_db(get_engine(settings.database_url))
+    upgrade_db(settings.database_url)
     yield
 
 
