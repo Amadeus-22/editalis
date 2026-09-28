@@ -174,6 +174,21 @@ class Exam(Base):
         )
 
 
+class ProcessedWebhookEvent(Base):
+    """Inbound webhook events already applied. Makes webhook handling idempotent."""
+
+    __tablename__ = "processed_webhook_events"
+    __table_args__ = (
+        UniqueConstraint("provider", "event_id", name="uq_processed_webhook_events_provider_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    provider: Mapped[str] = mapped_column(String(20))
+    event_id: Mapped[str] = mapped_column(String(100))
+    event_type: Mapped[str] = mapped_column(String(60))
+    received_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
 class Delivery(Base):
     """One alert for one subscriber. Written before any send is attempted."""
 

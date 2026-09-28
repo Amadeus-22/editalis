@@ -23,6 +23,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.billing import apply_asaas_event, plan_for_event
 from app.classifier import HeuristicClassifier, LLMClassifier, _sanitize
 from app.config import Settings
 from app.db import init_db, make_engine, make_session_factory
@@ -38,7 +39,7 @@ from app.domain import (
 )
 from app.matcher import matches
 from app.messages import MAX_CHARS, OPT_OUT_FOOTER, format_alert, format_brl
-from app.models import Delivery, Exam, RawItem, Subscriber
+from app.models import Delivery, Exam, ProcessedWebhookEvent, RawItem, Subscriber
 from app.pipeline import run_cycle
 from app.sender import SendError, SendResult, flatten
 from app.sources.querido_diario import QueridoDiarioSource
@@ -483,6 +484,61 @@ def test_webhook_verification_handshake() -> None:
     assert client.get("/webhooks/whatsapp", params=params).text == "42"
     params["hub.verify_token"] = "wrong"
     assert client.get("/webhooks/whatsapp", params=params).status_code == 403
+
+
+def asaas_event(event_id: str, event: str, subscriber_id: int) -> dict[str, Any]:
+    return {
+        "id": event_id,
+        "event": event,
+        "payment": {"id": "pay_1", "externalReference": str(subscriber_id)},
+    }
+
+
+def test_asaas_plan_mapping() -> None:
+    assert plan_for_event("PAYMENT_RECEIVED") is Plan.PRO
+    assert plan_for_event("SUBSCRIPTION_DELETED") is Plan.FREE
+    assert plan_for_event("PAYMENT_CREATED") is None
+
+
+def test_asaas_webhook_switches_plan_idempotently() -> None:
+    factory = make_db()
+    subscriber_id = add_subscriber(factory, "5521999990001", plan=Plan.FREE.value)
+    client = make_client(factory, asaas_webhook_token="asaas-secret")
+    headers = {"asaas-access-token": "asaas-secret"}
+    upgrade = asaas_event("evt_1", "PAYMENT_RECEIVED", subscriber_id)
+
+    assert client.post("/webhooks/asaas", json=upgrade).status_code == 401
+    assert client.post("/webhooks/asaas", json=upgrade, headers=headers).json() == {
+        "outcome": "applied"
+    }
+    assert client.post("/webhooks/asaas", json=upgrade, headers=headers).json() == {
+        "outcome": "duplicate"
+    }
+    with factory() as session:
+        assert session.get(Subscriber, subscriber_id).plan == Plan.PRO
+        assert session.scalar(select(func.count()).select_from(ProcessedWebhookEvent)) == 1
+
+    downgrade = asaas_event("evt_2", "PAYMENT_OVERDUE", subscriber_id)
+    client.post("/webhooks/asaas", json=downgrade, headers=headers)
+    unknown = asaas_event("evt_3", "PAYMENT_RECEIVED", 999)
+    outcome = client.post("/webhooks/asaas", json=unknown, headers=headers).json()
+    assert outcome == {"outcome": "unknown_subscriber"}
+    with factory() as session:
+        assert session.get(Subscriber, subscriber_id).plan == Plan.FREE
+
+
+def test_upgrade_releases_pending_free_alerts() -> None:
+    factory = make_db()
+    subscriber_id = add_subscriber(factory, "5521999990001", plan=Plan.FREE.value)
+    sender = RecordingSender()
+    cycle(factory, [FakeSource([make_item()])], sender)
+    assert sender.sent == []
+
+    with factory() as session:
+        apply_asaas_event(session, asaas_event("evt_1", "PAYMENT_CONFIRMED", subscriber_id), NOW)
+        session.commit()
+    cycle(factory, [], sender, now=NOW + timedelta(minutes=30))
+    assert len(sender.sent) == 1
 
 
 # ---------------------------------------------------------------------------

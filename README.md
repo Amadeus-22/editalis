@@ -120,6 +120,7 @@ documents every key. The most important ones:
 | `FREE_DELAY_HOURS` | `24` | Delay applied to the free plan |
 | `SCHEDULE_MINUTES` | `30` | Worker interval |
 | `RSS_FEEDS` | *(empty)* | Comma-separated feeds whose terms allow this use |
+| `ASAAS_WEBHOOK_TOKEN` | *(empty)* | Token Asaas sends on every webhook call |
 | `AFFILIATE_LINKS` | `{}` | JSON `{area: url}` for the course link in the footer |
 
 Valid areas: `administrative`, `banking`, `education`, `engineering`, `health`,
@@ -140,6 +141,7 @@ Interactive documentation is served at `/docs`.
 | `PATCH` | `/subscribers/{id}` | `X-Admin-Token` | Update profile, plan or status |
 | `GET` | `/webhooks/whatsapp` | Verify token | Meta subscription handshake |
 | `POST` | `/webhooks/whatsapp` | `X-Hub-Signature-256` | Inbound messages; handles `SAIR` opt-out |
+| `POST` | `/webhooks/asaas` | `asaas-access-token` | Payment/subscription events; switches the plan (idempotent per event) |
 
 Phone numbers use E.164 without the `+`: `55` + area code + number.
 
@@ -149,7 +151,8 @@ Phone numbers use E.164 without the `+`: `55` + area code + number.
 
 ```
 app/
-├── api.py            FastAPI app: health, admin subscribers, WhatsApp webhook
+├── api.py            FastAPI app: health, admin subscribers, webhooks
+├── billing.py        Asaas events → subscriber plan
 ├── classifier.py     LLM and heuristic classifiers, _sanitize()
 ├── config.py         Settings (pydantic-settings)
 ├── db.py             Engine/session factories, insert_ignore()
@@ -202,7 +205,7 @@ agents are in [CLAUDE.md](CLAUDE.md).
 - [x] Idempotent collect → classify → match → dispatch pipeline
 - [x] 24h delay for the free plan
 - [x] `SAIR` opt-out via WhatsApp webhook
-- [ ] Asaas webhook for recurring Pix subscriptions
+- [x] Asaas webhook for recurring Pix subscriptions
 - [ ] Profile onboarding over WhatsApp (`"RJ, saúde, superior"`)
 - [ ] DOU/INLABS source
 - [ ] Exam board adapters: Cebraspe, FGV, FCC, Vunesp, IBFC

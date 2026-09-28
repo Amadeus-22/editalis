@@ -19,6 +19,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import __version__
+from app.billing import apply_asaas_event
 from app.config import Settings, configure_logging, get_settings
 from app.db import get_engine, init_db, make_session_factory
 from app.domain import UFS, Area, EducationLevel, Plan
@@ -231,3 +232,23 @@ def _iter_text_messages(payload: Any) -> Iterator[tuple[str, str]]:
                 body = (message.get("text") or {}).get("body")
                 if isinstance(phone, str) and isinstance(body, str):
                     yield phone, body
+
+
+@app.post("/webhooks/asaas", status_code=status.HTTP_200_OK)
+def receive_asaas_webhook(
+    payload: dict[str, Any],
+    settings: SettingsDep,
+    session: SessionDep,
+    asaas_access_token: Annotated[str | None, Header()] = None,
+) -> dict[str, str]:
+    """Asaas payment/subscription events. Switches the subscriber plan."""
+    expected = settings.asaas_webhook_token
+    if not expected:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "ASAAS_WEBHOOK_TOKEN not set")
+    if not asaas_access_token or not hmac.compare_digest(asaas_access_token, expected):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid token")
+
+    outcome = apply_asaas_event(session, payload, datetime.now(UTC))
+    session.commit()
+    # 200 for every authenticated event, so Asaas does not pause the webhook queue.
+    return {"outcome": outcome.value}
