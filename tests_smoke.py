@@ -40,6 +40,7 @@ from app.domain import (
 from app.matcher import matches
 from app.messages import MAX_CHARS, OPT_OUT_FOOTER, format_alert, format_brl
 from app.models import Delivery, Exam, ProcessedWebhookEvent, RawItem, Subscriber
+from app.onboarding import parse_profile
 from app.pipeline import run_cycle
 from app.sender import SendError, SendResult, flatten
 from app.sources.querido_diario import QueridoDiarioSource
@@ -539,6 +540,45 @@ def test_upgrade_releases_pending_free_alerts() -> None:
         session.commit()
     cycle(factory, [], sender, now=NOW + timedelta(minutes=30))
     assert len(sender.sent) == 1
+
+
+def test_parse_profile_message() -> None:
+    update = parse_profile("RJ, São Paulo, saúde e TI, nível médio, superior, acima de 5 mil")
+    assert update is not None
+    assert update.ufs == ("RJ", "SP")
+    assert update.areas == (Area.HEALTH, Area.IT)
+    assert update.education is EducationLevel.HIGHER
+    assert update.min_salary_cents == 500_000
+    assert parse_profile("R$ 3.500,00").min_salary_cents == 350_000
+    assert parse_profile("oi, tudo bem?") is None
+
+
+def whatsapp_payload(phone: str, text: str) -> dict[str, Any]:
+    message = {"from": phone, "type": "text", "text": {"body": text}}
+    return {"entry": [{"changes": [{"value": {"messages": [message]}}]}]}
+
+
+def test_webhook_onboards_and_reactivates_subscribers() -> None:
+    factory = make_db()
+    client = make_client(factory)
+    phone = "5521999990009"
+
+    client.post("/webhooks/whatsapp", json=whatsapp_payload(phone, "RJ, saúde, superior"))
+    with factory() as session:
+        subscriber = session.scalars(select(Subscriber)).one()
+        assert (subscriber.ufs, subscriber.areas, subscriber.education) == (
+            ["RJ"],
+            ["health"],
+            "higher",
+        )
+        assert subscriber.plan == Plan.FREE and subscriber.active
+
+    client.post("/webhooks/whatsapp", json=whatsapp_payload(phone, "SAIR"))
+    client.post("/webhooks/whatsapp", json=whatsapp_payload(phone, "SP"))
+    client.post("/webhooks/whatsapp", json=whatsapp_payload("14155550100", "RJ, saúde"))
+    with factory() as session:
+        subscriber = session.scalars(select(Subscriber)).one()  # foreign number ignored
+        assert subscriber.active and subscriber.ufs == ["SP"] and subscriber.areas == ["health"]
 
 
 # ---------------------------------------------------------------------------
