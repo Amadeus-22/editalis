@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     evolution_api_key: str = ""
     evolution_instance: str = ""
 
+    # Billing (Asaas). Token configured on the webhook; sent as `asaas-access-token`.
+    asaas_webhook_token: str = ""
+
     # Worker
     schedule_minutes: int = 30
     free_delay_hours: int = 24
