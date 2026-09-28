@@ -78,18 +78,20 @@ WhatsApp text is in Portuguese.
 - Run the API: `uvicorn app.api:app --reload`. Run the worker: `python run.py --once`.
 - Small commits, English messages, imperative mood ("add DOU source").
 - Do not install new dependencies without adding them to `requirements.txt` with a pinned version.
-- Schema migrations use Alembic (add it when moving off SQLite).
+- Schema changes: edit `app/models.py`, then `alembic revision --autogenerate -m "..."`
+  and review the file. `test_migrations_match_models` fails if they drift. The API and
+  worker apply pending migrations on startup.
 
 ## Backlog (in order)
 1. DOU/INLABS adapter.
 2. Adapters for the 5 main exam boards.
-3. Migrate to Postgres + Alembic; Docker Compose.
+3. Docker Compose deployment with Postgres.
 4. Rectification/summons tracker (the kind already exists in the classifier).
 5. PDF edital upload endpoint → summary and schedule.
 6. Onboarding confirmation reply (needs a dispatch path for non-alert messages).
 
 Done: 24h delay for the free plan in `dispatch()`; WhatsApp onboarding
-(`app/onboarding.py`); Asaas webhook (`app/billing.py`,
+(`app/onboarding.py`); Alembic migrations (`migrations/`); Asaas webhook (`app/billing.py`,
 subscriptions carry `externalReference` = subscriber id).
 
 ## Out of scope for now

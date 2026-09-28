@@ -168,6 +168,7 @@ app/
 └── sources/          One module per data source
     ├── querido_diario.py
     └── rss.py
+migrations/            Alembic environment and versions
 run.py                Worker entrypoint (APScheduler)
 tests_smoke.py        End-to-end smoke tests
 ```
@@ -192,6 +193,14 @@ ruff check . && ruff format .     # lint and format
 python tests_smoke.py             # or: pytest
 ```
 
+Schema changes go through Alembic. The API and the worker apply pending
+migrations on startup:
+
+```bash
+alembic revision --autogenerate -m "describe the change"   # after editing app/models.py
+alembic upgrade head                                       # apply manually
+```
+
 CI runs ruff and the smoke tests on every push and pull request. Before opening
 a PR, the tests must pass. Any change to the pipeline, classifier, matcher or
 sender needs a matching test case. Engineering rules for contributors and AI
@@ -211,6 +220,7 @@ agents are in [CLAUDE.md](CLAUDE.md).
 - [x] Profile onboarding over WhatsApp (`"RJ, saúde, superior"`)
 - [ ] DOU/INLABS source
 - [ ] Exam board adapters: Cebraspe, FGV, FCC, Vunesp, IBFC
-- [ ] Postgres + Alembic, Docker Compose deployment
+- [x] Alembic migrations (SQLite and Postgres)
+- [ ] Docker Compose deployment with Postgres
 - [ ] Rectification and summons tracker
 - [ ] PDF edital reader: summary and schedule
