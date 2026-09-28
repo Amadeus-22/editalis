@@ -67,6 +67,7 @@ Responda SAIR para não receber mais alertas.
 | **Matching** | Pure functions over UF, area, education level and salary floor. |
 | **Delivery** | Meta Cloud API (approved templates) or self-hosted Evolution API; console output with `DRY_RUN=1`. |
 | **Plans** | Pro receives alerts in real time; Free 24h later. Upgrading releases pending alerts on the next cycle. |
+| **Onboarding** | Users text their profile (`RJ, saúde, superior, acima de 5 mil`) and are subscribed on the free plan. |
 | **Compliance** | Replying `SAIR` opts out and cancels queued alerts; webhook signatures are verified. |
 | **Relevance** | Alerts whose registration closed before dispatch are skipped. Affiliate links appear only when a course matches the exam's area. |
 
@@ -140,7 +141,7 @@ Interactive documentation is served at `/docs`.
 | `GET` | `/subscribers/{id}` | `X-Admin-Token` | Read a subscriber |
 | `PATCH` | `/subscribers/{id}` | `X-Admin-Token` | Update profile, plan or status |
 | `GET` | `/webhooks/whatsapp` | Verify token | Meta subscription handshake |
-| `POST` | `/webhooks/whatsapp` | `X-Hub-Signature-256` | Inbound messages; handles `SAIR` opt-out |
+| `POST` | `/webhooks/whatsapp` | `X-Hub-Signature-256` | Inbound messages: `SAIR` opt-out and profile onboarding |
 | `POST` | `/webhooks/asaas` | `asaas-access-token` | Payment/subscription events; switches the plan (idempotent per event) |
 
 Phone numbers use E.164 without the `+`: `55` + area code + number.
@@ -162,7 +163,8 @@ app/
 ├── models.py         SQLAlchemy models and idempotency constraints
 ├── pipeline.py       collect / classify / match / dispatch, run_cycle()
 ├── sender.py         Console, Meta Cloud and Evolution senders
-├── subscribers.py    Opt-out handling
+├── onboarding.py     Free-text profile parser
+├── subscribers.py    Opt-out and profile updates
 └── sources/          One module per data source
     ├── querido_diario.py
     └── rss.py
@@ -206,7 +208,7 @@ agents are in [CLAUDE.md](CLAUDE.md).
 - [x] 24h delay for the free plan
 - [x] `SAIR` opt-out via WhatsApp webhook
 - [x] Asaas webhook for recurring Pix subscriptions
-- [ ] Profile onboarding over WhatsApp (`"RJ, saúde, superior"`)
+- [x] Profile onboarding over WhatsApp (`"RJ, saúde, superior"`)
 - [ ] DOU/INLABS source
 - [ ] Exam board adapters: Cebraspe, FGV, FCC, Vunesp, IBFC
 - [ ] Postgres + Alembic, Docker Compose deployment

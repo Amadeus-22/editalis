@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
+import re
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -24,7 +25,8 @@ from app.config import Settings, configure_logging, get_settings
 from app.db import get_engine, init_db, make_session_factory
 from app.domain import UFS, Area, EducationLevel, Plan
 from app.models import Subscriber
-from app.subscribers import is_opt_out, opt_out
+from app.onboarding import parse_profile
+from app.subscribers import apply_profile_update, is_opt_out, opt_out
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +194,7 @@ def verify_whatsapp_webhook(
 async def receive_whatsapp_webhook(
     request: Request, settings: SettingsDep, session: SessionDep
 ) -> Response:
-    """Inbound messages from the Meta Cloud API. Handles opt-out (SAIR)."""
+    """Inbound messages from the Meta Cloud API: SAIR opt-out and profile onboarding."""
     body = await request.body()
     if settings.wa_app_secret and not _valid_signature(
         body, request.headers.get("x-hub-signature-256"), settings.wa_app_secret
@@ -206,8 +208,12 @@ async def receive_whatsapp_webhook(
 
     now = datetime.now(UTC)
     for phone, message in _iter_text_messages(payload):
-        if is_opt_out(message) and opt_out(session, phone, now):
-            logger.info("Subscriber %s opted out", phone)
+        if is_opt_out(message):
+            if opt_out(session, phone, now):
+                logger.info("Subscriber %s opted out", phone)
+        elif re.fullmatch(PHONE_PATTERN, phone) and (update := parse_profile(message)):
+            apply_profile_update(session, phone, update, now)
+            logger.info("Subscriber %s updated profile from WhatsApp", phone)
     session.commit()
     # Always 200 so Meta does not retry payloads we chose to ignore.
     return Response(status_code=status.HTTP_200_OK)

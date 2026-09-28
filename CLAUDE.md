@@ -81,14 +81,15 @@ WhatsApp text is in Portuguese.
 - Schema migrations use Alembic (add it when moving off SQLite).
 
 ## Backlog (in order)
-1. WhatsApp onboarding: webhook receives "RJ, saúde, superior" and updates the profile.
-2. DOU/INLABS adapter.
-3. Adapters for the 5 main exam boards.
-4. Migrate to Postgres + Alembic; Docker Compose.
-5. Rectification/summons tracker (the kind already exists in the classifier).
-6. PDF edital upload endpoint → summary and schedule.
+1. DOU/INLABS adapter.
+2. Adapters for the 5 main exam boards.
+3. Migrate to Postgres + Alembic; Docker Compose.
+4. Rectification/summons tracker (the kind already exists in the classifier).
+5. PDF edital upload endpoint → summary and schedule.
+6. Onboarding confirmation reply (needs a dispatch path for non-alert messages).
 
-Done: 24h delay for the free plan in `dispatch()`; Asaas webhook (`app/billing.py`,
+Done: 24h delay for the free plan in `dispatch()`; WhatsApp onboarding
+(`app/onboarding.py`); Asaas webhook (`app/billing.py`,
 subscriptions carry `externalReference` = subscriber id).
 
 ## Out of scope for now
