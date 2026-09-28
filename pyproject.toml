@@ -1,5 +1,5 @@
 [project]
-name = "public-exam-alerts"
+name = "editalis"
 version = "0.1.0"
 description = "Segmented WhatsApp alerts for Brazilian public service exams (concursos)."
 requires-python = ">=3.12"

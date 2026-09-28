@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # Core
-    database_url: str = "sqlite:///./public_exam_alerts.db"
+    database_url: str = "sqlite:///./editalis.db"
     log_level: str = "INFO"
     admin_token: str = ""
 
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     wa_graph_version: str = "v23.0"
     wa_phone_number_id: str = ""
     wa_access_token: str = ""
-    wa_template_name: str = "public_exam_alert"
+    wa_template_name: str = "editalis_alert"
     wa_template_lang: str = "pt_BR"
     wa_verify_token: str = ""
     wa_app_secret: str = ""
