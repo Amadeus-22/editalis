@@ -3,7 +3,7 @@
 The two unique constraints below are what make the pipeline idempotent.
 Never drop them:
   - RawItem:  (source, external_id)
-  - Delivery: (subscriber_id, concurso_id)
+  - Delivery: (subscriber_id, exam_id)
 """
 
 from __future__ import annotations
@@ -122,11 +122,11 @@ class RawItem(Base):
         )
 
 
-class Concurso(Base):
+class Exam(Base):
     """A classified notice about a public exam, derived from exactly one RawItem."""
 
-    __tablename__ = "concursos"
-    __table_args__ = (Index("ix_concursos_matched_at", "matched_at"),)
+    __tablename__ = "exams"
+    __table_args__ = (Index("ix_exams_matched_at", "matched_at"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     raw_item_id: Mapped[int] = mapped_column(ForeignKey("raw_items.id"), unique=True)
@@ -142,7 +142,7 @@ class Concurso(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     matched_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
-    deliveries: Mapped[list[Delivery]] = relationship(back_populates="concurso")
+    deliveries: Mapped[list[Delivery]] = relationship(back_populates="exam")
 
     @staticmethod
     def row_from(raw_item: RawItem, result: Classification, now: datetime) -> dict[str, Any]:
@@ -179,13 +179,13 @@ class Delivery(Base):
 
     __tablename__ = "deliveries"
     __table_args__ = (
-        UniqueConstraint("subscriber_id", "concurso_id", name="uq_deliveries_subscriber_concurso"),
+        UniqueConstraint("subscriber_id", "exam_id", name="uq_deliveries_subscriber_exam"),
         Index("ix_deliveries_status", "status"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     subscriber_id: Mapped[int] = mapped_column(ForeignKey("subscribers.id"))
-    concurso_id: Mapped[int] = mapped_column(ForeignKey("concursos.id"))
+    exam_id: Mapped[int] = mapped_column(ForeignKey("exams.id"))
     status: Mapped[str] = mapped_column(String(10), default=DeliveryStatus.PENDING)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     provider_message_id: Mapped[str | None] = mapped_column(String(255))
@@ -194,4 +194,4 @@ class Delivery(Base):
     sent_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
     subscriber: Mapped[Subscriber] = relationship(back_populates="deliveries")
-    concurso: Mapped[Concurso] = relationship(back_populates="deliveries")
+    exam: Mapped[Exam] = relationship(back_populates="deliveries")
