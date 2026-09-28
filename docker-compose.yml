@@ -1,0 +1,57 @@
+# Production-like stack: Postgres, a one-shot migration job, the API and the worker.
+# Usage: cp .env.example .env  (set POSTGRES_PASSWORD), then `docker compose up -d --build`.
+
+x-app: &app
+  build: .
+  image: editalis:latest
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql+psycopg://editalis:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/editalis
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: editalis
+      POSTGRES_USER: editalis
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U editalis -d editalis"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    ports:
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    <<: *app
+    command: ["python", "run.py"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:
