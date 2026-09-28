@@ -38,7 +38,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-app = FastAPI(title="Concurso Alerts", version=__version__, lifespan=lifespan)
+app = FastAPI(title="Public Exam Alerts", version=__version__, lifespan=lifespan)
 
 
 # ---------------------------------------------------------------------------

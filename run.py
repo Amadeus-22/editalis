@@ -25,7 +25,7 @@ logger = logging.getLogger("worker")
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Concurso Alerts worker")
+    parser = argparse.ArgumentParser(description="Public Exam Alerts worker")
     parser.add_argument("--once", action="store_true", help="run one cycle and exit")
     args = parser.parse_args(argv)
 
@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     engine = get_engine(settings.database_url)
     init_db(engine)
 
-    headers = {"User-Agent": f"concurso-alerts/{__version__}"}
+    headers = {"User-Agent": f"public-exam-alerts/{__version__}"}
     with httpx.Client(headers=headers, timeout=30) as http:
         cycle = partial(
             run_cycle,

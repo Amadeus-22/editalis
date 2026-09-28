@@ -1,5 +1,5 @@
 [project]
-name = "concurso-alerts"
+name = "public-exam-alerts"
 version = "0.1.0"
 description = "Segmented WhatsApp alerts for Brazilian public service exams (concursos)."
 requires-python = ">=3.12"

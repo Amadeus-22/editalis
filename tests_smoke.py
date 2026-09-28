@@ -38,7 +38,7 @@ from app.domain import (
 )
 from app.matcher import matches
 from app.messages import MAX_CHARS, OPT_OUT_FOOTER, format_alert, format_brl
-from app.models import Concurso, Delivery, RawItem, Subscriber
+from app.models import Delivery, Exam, RawItem, Subscriber
 from app.pipeline import run_cycle
 from app.sender import SendError, SendResult, flatten
 from app.sources.querido_diario import QueridoDiarioSource
@@ -307,7 +307,7 @@ def test_pipeline_is_idempotent() -> None:
         cycle(factory, [source], sender)
 
     assert count(factory, RawItem) == 1
-    assert count(factory, Concurso) == 1
+    assert count(factory, Exam) == 1
     assert count(factory, Delivery) == 1
     assert len(sender.sent) == 1
     phone, text = sender.sent[0]
@@ -389,7 +389,7 @@ def test_querido_diario_adapter_parses_and_paginates() -> None:
         return httpx.Response(200, json=pages[len(calls) - 1])
 
     http = httpx.Client(transport=httpx.MockTransport(handler))
-    items = list(QueridoDiarioSource(http, "https://qd.example", "concurso").fetch(NOW))
+    items = list(QueridoDiarioSource(http, "https://qd.example", "exam").fetch(NOW))
     assert len(calls) == 2
     assert calls[0].url.params["published_since"] == "2026-09-26"
     assert len(items) == 1  # the second gazette has no URL and is skipped

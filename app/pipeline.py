@@ -2,10 +2,10 @@
 
 Every stage is idempotent and can run any number of times:
   - collect:  RawItem is unique per (source, external_id).
-  - classify: only touches RawItems with classified_at IS NULL; Concurso is
+  - classify: only touches RawItems with classified_at IS NULL; Exam is
               unique per raw_item_id.
-  - match:    only touches Concursos with matched_at IS NULL; Delivery is
-              unique per (subscriber_id, concurso_id).
+  - match:    only touches Exams with matched_at IS NULL; Delivery is
+              unique per (subscriber_id, exam_id).
   - dispatch: only sends PENDING deliveries, and marks them SENDING before the
               provider call, so a crash can never cause a duplicate message.
 """
@@ -27,7 +27,7 @@ from app.db import insert_ignore, session_scope
 from app.domain import DeliveryStatus, Plan, SourceItem
 from app.matcher import matches
 from app.messages import format_alert, pick_affiliate_link
-from app.models import Concurso, Delivery, RawItem, Subscriber
+from app.models import Delivery, Exam, RawItem, Subscriber
 from app.sender import Sender, SendError
 from app.sources import Source
 from app.sources.querido_diario import QueridoDiarioSource
@@ -78,7 +78,7 @@ def collect(session: Session, sources: Sequence[Source], now: datetime) -> int:
 
 
 def classify(session: Session, classifier: Classifier, now: datetime, limit: int = 200) -> int:
-    """Classify unprocessed items. Returns how many became Concursos."""
+    """Classify unprocessed items. Returns how many became Exams."""
     items = session.scalars(
         select(RawItem).where(RawItem.classified_at.is_(None)).order_by(RawItem.id).limit(limit)
     ).all()
@@ -91,7 +91,7 @@ def classify(session: Session, classifier: Classifier, now: datetime, limit: int
             continue
         if result is not None and result.is_public_exam:
             created += insert_ignore(
-                session, Concurso, [Concurso.row_from(item, result, now)], ("raw_item_id",)
+                session, Exam, [Exam.row_from(item, result, now)], ("raw_item_id",)
             )
         item.classified_at = now
         # Commit per item so paid LLM work is never lost to a later failure.
@@ -100,30 +100,28 @@ def classify(session: Session, classifier: Classifier, now: datetime, limit: int
 
 
 def match(session: Session, now: datetime) -> int:
-    """Create Delivery rows for every (active subscriber, new Concurso) that matches."""
-    concursos = session.scalars(
-        select(Concurso).where(Concurso.matched_at.is_(None)).order_by(Concurso.id)
-    ).all()
-    if not concursos:
+    """Create Delivery rows for every (active subscriber, new Exam) that matches."""
+    exams = session.scalars(select(Exam).where(Exam.matched_at.is_(None)).order_by(Exam.id)).all()
+    if not exams:
         return 0
 
     subscribers = session.scalars(select(Subscriber).where(Subscriber.active.is_(True))).all()
     profiles = [(s.id, s.profile()) for s in subscribers]
     created = 0
-    for concurso in concursos:
-        notice = concurso.to_classification()
+    for exam in exams:
+        notice = exam.to_classification()
         rows = [
             {
                 "subscriber_id": subscriber_id,
-                "concurso_id": concurso.id,
+                "exam_id": exam.id,
                 "status": DeliveryStatus.PENDING.value,
                 "created_at": now,
             }
             for subscriber_id, profile in profiles
             if matches(profile, notice)
         ]
-        created += insert_ignore(session, Delivery, rows, ("subscriber_id", "concurso_id"))
-        concurso.matched_at = now
+        created += insert_ignore(session, Delivery, rows, ("subscriber_id", "exam_id"))
+        exam.matched_at = now
         session.commit()
     return created
 
@@ -153,7 +151,7 @@ def dispatch(
     due = session.scalars(
         select(Delivery)
         .join(Delivery.subscriber)
-        .options(joinedload(Delivery.subscriber), joinedload(Delivery.concurso))
+        .options(joinedload(Delivery.subscriber), joinedload(Delivery.exam))
         .where(
             Delivery.status == DeliveryStatus.PENDING,
             Subscriber.active.is_(True),
@@ -164,17 +162,17 @@ def dispatch(
     ).all()
 
     for delivery in due:
-        concurso = delivery.concurso
-        if concurso.registration_deadline and concurso.registration_deadline < now.date():
+        exam = delivery.exam
+        if exam.registration_deadline and exam.registration_deadline < now.date():
             delivery.status = DeliveryStatus.SKIPPED
             delivery.error = "registration closed before dispatch"
             session.commit()
             report.skipped += 1
             continue
 
-        notice = concurso.to_classification()
+        notice = exam.to_classification()
         affiliate_link = pick_affiliate_link(notice.areas, affiliate_links)
-        text = format_alert(notice, concurso.url, affiliate_link)
+        text = format_alert(notice, exam.url, affiliate_link)
 
         # Claim the delivery before calling the provider (at-most-once delivery).
         delivery.status = DeliveryStatus.SENDING

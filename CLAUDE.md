@@ -1,4 +1,4 @@
-# Concurso Alerts
+# Public Exam Alerts
 
 WhatsApp alerts for Brazilian public service exams (concursos públicos),
 segmented by profile (state/UF, area, education level, minimum salary).
@@ -33,7 +33,7 @@ A linear, idempotent pipeline: collect → classify → match → dispatch.
 | `app/sender.py` | Console / Meta Cloud / Evolution providers |
 | `app/pipeline.py` | Stages, `build_sources()` and `run_cycle()` |
 | `app/api.py` | Health, admin subscriber CRUD, WhatsApp webhook (opt-out) |
-| `app/models.py` | `Subscriber`, `RawItem`, `Concurso`, `Delivery` |
+| `app/models.py` | `Subscriber`, `RawItem`, `Exam`, `Delivery` |
 
 Code, comments, identifiers and enum values are in English. Only user-facing
 WhatsApp text is in Portuguese.
@@ -41,7 +41,7 @@ WhatsApp text is in Portuguese.
 ## Engineering rules
 - Every pipeline stage must be safe to run N times without duplicating anything.
   RawItem is unique per (source, external_id); Delivery is unique per
-  (subscriber_id, concurso_id). Never remove these constraints.
+  (subscriber_id, exam_id). Never remove these constraints.
 - A new data source = a new file in `app/sources/`, registered in
   `pipeline.build_sources()`. Do not mix source logic into the pipeline.
 - The classifier and the matcher are pure functions: no DB I/O, no sending.

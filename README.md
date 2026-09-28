@@ -1,4 +1,4 @@
-# Concurso Alerts
+# Public Exam Alerts
 
 Segmented WhatsApp alerts for Brazilian public service exams (*concursos públicos*).
 Subscribers pick states, areas, education level and a minimum salary. The service
@@ -6,7 +6,7 @@ watches official sources and sends each person only the notices that match.
 
 ```
  sources ──► collect ──► classify ──► match ──► dispatch ──► WhatsApp
- (QD, RSS)   RawItem     Concurso     Delivery   Meta / Evolution
+ (QD, RSS)   RawItem     Exam         Delivery   Meta / Evolution
 ```
 
 Each stage is idempotent: re-running a cycle never duplicates items or messages.
