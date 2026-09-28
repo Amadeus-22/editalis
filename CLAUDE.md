@@ -1,4 +1,4 @@
-# Public Exam Alerts
+# Editalis
 
 WhatsApp alerts for Brazilian public service exams (concursos públicos),
 segmented by profile (state/UF, area, education level, minimum salary).
