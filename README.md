@@ -93,6 +93,13 @@ python run.py                     # worker, every SCHEDULE_MINUTES
 uvicorn app.api:app --reload      # API docs at http://localhost:8000/docs
 ```
 
+Or run the production-like stack (Postgres, migrations, API and worker):
+
+```bash
+cp .env.example .env              # set POSTGRES_PASSWORD and ADMIN_TOKEN
+docker compose up -d --build      # API on http://localhost:8000
+```
+
 Create a subscriber (set `ADMIN_TOKEN` in `.env` first):
 
 ```bash
@@ -170,6 +177,8 @@ app/
     └── rss.py
 migrations/            Alembic environment and versions
 run.py                Worker entrypoint (APScheduler)
+Dockerfile            Image for the API and the worker
+docker-compose.yml    Postgres, migrate job, API and worker
 tests_smoke.py        End-to-end smoke tests
 ```
 
@@ -221,6 +230,6 @@ agents are in [CLAUDE.md](CLAUDE.md).
 - [ ] DOU/INLABS source
 - [ ] Exam board adapters: Cebraspe, FGV, FCC, Vunesp, IBFC
 - [x] Alembic migrations (SQLite and Postgres)
-- [ ] Docker Compose deployment with Postgres
+- [x] Docker Compose deployment with Postgres
 - [ ] Rectification and summons tracker
 - [ ] PDF edital reader: summary and schedule

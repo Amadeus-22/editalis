@@ -76,6 +76,7 @@ WhatsApp text is in Portuguese.
 - After changing pipeline/classifier/matcher/sender: update or add a case in `tests_smoke.py`.
 - Lint/format: `ruff check . && ruff format .`
 - Run the API: `uvicorn app.api:app --reload`. Run the worker: `python run.py --once`.
+- Full stack: `docker compose up -d --build` (needs `POSTGRES_PASSWORD` in `.env`).
 - Small commits, English messages, imperative mood ("add DOU source").
 - Do not install new dependencies without adding them to `requirements.txt` with a pinned version.
 - Schema changes: edit `app/models.py`, then `alembic revision --autogenerate -m "..."`
@@ -85,13 +86,13 @@ WhatsApp text is in Portuguese.
 ## Backlog (in order)
 1. DOU/INLABS adapter.
 2. Adapters for the 5 main exam boards.
-3. Docker Compose deployment with Postgres.
-4. Rectification/summons tracker (the kind already exists in the classifier).
-5. PDF edital upload endpoint → summary and schedule.
-6. Onboarding confirmation reply (needs a dispatch path for non-alert messages).
+3. Rectification/summons tracker (the kind already exists in the classifier).
+4. PDF edital upload endpoint → summary and schedule.
+5. Onboarding confirmation reply (needs a dispatch path for non-alert messages).
 
 Done: 24h delay for the free plan in `dispatch()`; WhatsApp onboarding
-(`app/onboarding.py`); Alembic migrations (`migrations/`); Asaas webhook (`app/billing.py`,
+(`app/onboarding.py`); Alembic migrations (`migrations/`); Docker Compose
+(`docker-compose.yml`); Asaas webhook (`app/billing.py`,
 subscriptions carry `externalReference` = subscriber id).
 
 ## Out of scope for now
